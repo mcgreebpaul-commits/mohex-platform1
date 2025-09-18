@@ -1,0 +1,6 @@
+# Allow all search engines to crawl the entire site.
+User-agent: *
+Allow: /
+
+# Point search engines to the sitemap (optional but good practice).
+Sitemap: https://www.yourdomain.com/sitemap.xml

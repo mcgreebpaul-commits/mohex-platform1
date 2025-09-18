@@ -1,0 +1,21 @@
+{
+    "sqltools.connections": [
+        {
+            "mysqlOptions": {
+                "authProtocol": "xprotocol",
+                "enableSsl": "Disabled"
+            },
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "localhost",
+            "port": 3306,
+            "driver": "MySQL",
+            "name": "mohex",
+            "database": "mohex",
+            "username": "root",
+            "connectionTimeout": 60
+        }
+    ],
+    "git.ignoreLimitWarning": true,
+    "haselerdev.aiquickfix.apiKey": "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"
+}
