@@ -1,8 +1,8 @@
 // backend/src/services/cronservice.ts
 
 import cron from 'node-cron';
-import * as db from '../config/db'; // Import the database pool
-import logger from '../utils/logger';
+import db from '../config/db.js'; // Import the database pool
+import logger from '../utils/logger.js';
 
 export const startSubscriptionCronJob = () => {
   // Schedule a task to run every day at midnight
@@ -14,7 +14,7 @@ export const startSubscriptionCronJob = () => {
       const connection: any = await db.getConnection();
 
       // Find subscriptions that are past their expiration date and still active
-      const [expiredSubscriptions]: any = await connection.execute(
+      const [expiredSubscriptions]: any = await connection.query(
         `SELECT id FROM subscriptions WHERE expires_at < NOW() AND status = 'active'`
       );
 
@@ -28,7 +28,7 @@ export const startSubscriptionCronJob = () => {
       const subscriptionIds = expiredSubscriptions.map((sub: { id: number }) => sub.id);
 
       // Update the status of expired subscriptions to 'expired'
-      const [updateResult]: any = await connection.execute(
+      const [updateResult]: any = await connection.query(
         `UPDATE subscriptions SET status = 'expired' WHERE id IN (?)`,
         [subscriptionIds]
       );

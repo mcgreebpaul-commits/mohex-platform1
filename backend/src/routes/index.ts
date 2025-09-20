@@ -1,9 +1,9 @@
 // backend/src/routes/index.ts
 
 import { Router } from 'express';
-import authRoutes from './authroutes';
-import tradeRoutes from './traderoutes';
-import adminRoutes from './adminRoutes'; // Use the correct casing
+import authRoutes from './authroutes.js';
+import tradeRoutes from './traderoutes.js';
+import adminRoutes from './adminroutes.js'; // Use the correct casing
 
 const router = Router();
 

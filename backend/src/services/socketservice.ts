@@ -2,7 +2,7 @@
 
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
-import logger from '../utils/logger';
+import logger from '../utils/logger.js';
 
 // A simple in-memory map to track users and their socket IDs
 const userSocketMap = new Map<number, string>();

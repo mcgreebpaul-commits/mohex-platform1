@@ -1,10 +1,8 @@
-// backend/src/controllers/authcontrollers.ts
-
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import * as db from '../config/db';
-import logger from '../utils/logger';
+import db from '../config/db.js';
+import logger from '../utils/logger.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-that-is-long';
 
@@ -75,7 +73,7 @@ export const login = async (req: Request, res: Response) => {
 
   try {
     // Find the user by email
-    const [users]: any = await db.execute('SELECT id, email, password_hash, role FROM users WHERE email = ?', [email]);
+    const [users]: any = await db.query('SELECT id, email, password_hash, role FROM users WHERE email = ?', [email]);
     if (users.length === 0) {
       return res.status(404).json({ message: 'User not found.' });
     }

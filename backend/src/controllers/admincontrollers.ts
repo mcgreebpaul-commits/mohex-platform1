@@ -1,9 +1,8 @@
-// --- backend/src/controllers/adminController.ts ---
+import jwt from 'jsonwebtoken';
+import { io } from '../server.js'; // Import io from your server to emit events
+import bcrypt from 'bcryptjs';
+import db from '../config/db.js';
 import type { Request, Response } from 'express';
-const jwt = require('jsonwebtoken');
-const db = require('../config/db');
-const { io } = require('../server'); // Import io from your server to emit events
-const bcrypt = require('bcryptjs');
 
 // Utility to generate JWT
 const generateToken = (id: number, role: string) => {
@@ -115,7 +114,7 @@ export const simulateTradeOutcome = async (req: Request, res: Response) => {
 
 // Placeholders for other admin functions
 const getAdminDashboardStats = async (req: Request, res: Response) => { res.json({ message: 'Stats endpoint' }); };
-const getPendingTrades = async (req: Request, res: Response) => { 
+export const getPendingTrades = async (req: Request, res: Response) => { 
     try {
         const [trades]: any = await db.query(
             `SELECT t.id, t.pair, t.amount, t.signal, t.status, u.email as user_email 
@@ -135,7 +134,7 @@ export const getUsers = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Failed to fetch users' });
   }
 };
-const fundUserAccount = async (req: Request, res: Response) => {
+export const fundUserAccount = async (req: Request, res: Response) => {
   const { userId, amount } = req.body;
   if (!userId || !amount) {
     return res.status(400).json({ message: 'Missing required parameters' });
@@ -148,7 +147,7 @@ const fundUserAccount = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Failed to fund user account' });
   }
 };
-const getPendingDeposits = async (req: Request, res: Response) => {
+export const getPendingDeposits = async (req: Request, res: Response) => {
   try {
     const [deposits]: any = await db.query('SELECT * FROM deposits WHERE status = "pending"');
     res.json(deposits);
@@ -156,7 +155,7 @@ const getPendingDeposits = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Failed to fetch pending deposits' });
   }
 };
-const processDeposit = async (req: Request, res: Response) => {
+export const processDeposit = async (req: Request, res: Response) => {
   const { depositId, status } = req.body;
   if (!depositId || !status) {
     return res.status(400).json({ message: 'Missing required parameters' });
@@ -173,7 +172,7 @@ export const approvePayment = async (req: Request, res: Response) => { /* Logic 
 export const rejectPayment = async (req: Request, res: Response) => { /* Logic to reject a payment */ };
 export const updateUserAccess = async (req: Request, res: Response) => { /* Logic to update user agent access */ };
 export const manualUpdateBalance = async (req: Request, res: Response) => { /* Logic to manually credit/debit user */ };
-const settleTrade = (req: Request, res: Response) => {
+export const settleTrade = (req: Request, res: Response) => {
   // Implementation
 };
 export const getPendingPayments = async (req: Request, res: Response) => {
@@ -184,21 +183,4 @@ export const getPendingPayments = async (req: Request, res: Response) => {
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch pending payments' });
   }
-};
-
-module.exports = {
-  loginAdmin,
-  simulateTradeOutcome,
-  getAdminDashboardStats,
-  getPendingTrades,
-  getUsers,
-  fundUserAccount,
-  getPendingDeposits,
-  processDeposit,
-  approvePayment,
-  rejectPayment,
-  updateUserAccess,
-  manualUpdateBalance,
-  settleTrade,
-  getPendingPayments
 };

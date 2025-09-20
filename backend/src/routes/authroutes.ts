@@ -9,8 +9,8 @@ import {
   rejectPayment,
   updateUserAccess,
   manualUpdateBalance,
-} from '../controllers/admincontrollers'; // Changed 'adminController' to 'admincontrollers'
-import { protect, isAdmin } from '../middleware/authmiddleware'; // Use lowercase 'authmiddleware'
+} from '../controllers/admincontrollers.js';// Changed 'adminController' to 'admincontrollers'
+import { protect, isAdmin } from '../middleware/authmiddleware.js';// Use lowercase 'authmiddleware'
 
 const router = express.Router();
 

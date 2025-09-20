@@ -1,11 +1,11 @@
 // backend/src/routes/adminroutes.ts
 
-const express = require('express');
-const { Router } = require('express');
+import express from 'express';
+import { Router } from 'express';
 import type { Request, Response } from 'express';
-const { settleTrade, getPendingTrades, getUsers, fundUserAccount, getPendingDeposits, processDeposit } = require('../controllers/admincontrollers');
-const { authMiddleware } = require('../middleware/authmiddleware');
-const { isAdmin } = require('../middleware/adminmiddleware');
+import { settleTrade, getPendingTrades, getUsers, fundUserAccount, getPendingDeposits, processDeposit } from '../controllers/admincontrollers.js';
+import { authMiddleware } from '../middleware/authmiddleware.js';
+import { isAdmin } from '../middleware/adminmiddleware.js';
 
 const router = Router();
 
@@ -30,4 +30,4 @@ router.get('/', (req: Request, res: Response) => {
   res.send('Admin API is working!');
 });
 
-module.exports = router;
+export default router;

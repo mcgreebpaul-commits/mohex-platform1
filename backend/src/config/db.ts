@@ -1,8 +1,7 @@
 // backend/src/config/index.ts
 
-import type { PoolConnection } from 'mysql2/promise';
-const mysql = require('mysql2/promise');
-const dotenv = require('dotenv');
+import mysql from 'mysql2/promise';
+import dotenv from 'dotenv';
 
 dotenv.config();
 
@@ -20,24 +19,13 @@ const pool = mysql.createPool({
 
 // Test the connection
 pool.getConnection()
-  .then((connection: PoolConnection) => {
+  .then((connection) => {
     console.log('✅ Database connected successfully!');
     connection.release();
   })
-  .catch((err: unknown) => {
-    if (err instanceof Error) {
-      console.error('❌ Database connection failed:', err.message);
-    } else {
-      console.error('❌ Database connection failed:', String(err));
-    }
+  .catch((err) => {
+    console.error('❌ Database connection failed:', err.message);
   });
 
-module.exports = pool;
-
-export function getConnection() {
-  throw new Error('Function not implemented.');
-}
-export function execute(arg0: string, arg1: any[]): any {
-  throw new Error('Function not implemented.');
-}
+export default pool;
 

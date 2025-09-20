@@ -1,14 +1,14 @@
 import { Response } from 'express';
-import { AuthenticatedRequest } from '../middleware/authmiddleware';
-import * as db from '../config/db';
-import logger from '../utils/logger';
-import { socketService } from '../services/socketservice';
+import { AuthenticatedRequest } from '../middleware/authmiddleware.js';
+import db from '../config/db.js';
+import logger from '../utils/logger.js';
+import { socketService } from '../services/socketservice.js';
 
 // ---- Get User's Portfolio ----
 export const getPortfolio = async (req: AuthenticatedRequest, res: Response) => {
     const userId = req.user?.id;
     try {
-        const [portfolios]: any = await db.execute('SELECT * FROM portfolios WHERE user_id = ?', [userId]);
+        const [portfolios]: any = await db.query('SELECT * FROM portfolios WHERE user_id = ?', [userId]);
         if (portfolios.length === 0) {
             return res.status(404).json({ message: 'Portfolio not found.' });
         }
@@ -34,7 +34,7 @@ export const submitTrade = async (req: AuthenticatedRequest, res: Response) => {
         await connection.beginTransaction();
 
         // 1. Check user balance
-        const [portfolios]: any = await connection.execute('SELECT balance FROM portfolios WHERE user_id = ? FOR UPDATE', [userId]);
+        const [portfolios]: any = await connection.query('SELECT balance FROM portfolios WHERE user_id = ? FOR UPDATE', [userId]);
         if (portfolios.length === 0 || portfolios[0].balance < amount) {
             await connection.rollback();
             return res.status(400).json({ message: 'Insufficient funds.' });
@@ -42,10 +42,10 @@ export const submitTrade = async (req: AuthenticatedRequest, res: Response) => {
 
         // 2. Deduct amount from balance (This amount is "staked" in the trade)
         const newBalance = portfolios[0].balance - amount;
-        await connection.execute('UPDATE portfolios SET balance = ? WHERE user_id = ?', [newBalance, userId]);
+        await connection.query('UPDATE portfolios SET balance = ? WHERE user_id = ?', [newBalance, userId]);
 
         // 3. Create the trade record
-        const [result]: any = await connection.execute(
+        const [result]: any = await connection.query(
             'INSERT INTO trades (user_id, trading_pair, signal, amount, status) VALUES (?, ?, ?, ?, ?)',
             [userId, trading_pair, signal, amount, 'pending']
         );
@@ -72,7 +72,7 @@ export const submitTrade = async (req: AuthenticatedRequest, res: Response) => {
 export const getTradeHistory = async (req: AuthenticatedRequest, res: Response) => {
     const userId = req.user?.id;
     try {
-        const [trades] = await db.execute(
+        const [trades] = await db.query(
             'SELECT * FROM trades WHERE user_id = ? ORDER BY created_at DESC',
             [userId]
         );
@@ -93,7 +93,7 @@ export const submitDepositRequest = async (req: AuthenticatedRequest, res: Respo
     }
     
     try {
-        await db.execute(
+        await db.query(
             `INSERT INTO payments (user_id, type, status, amount_usd, crypto_symbol, tx_hash) VALUES (?, 'deposit', 'pending', ?, ?, ?)`,
             [userId, amount_usd, crypto_symbol, tx_hash]
         );

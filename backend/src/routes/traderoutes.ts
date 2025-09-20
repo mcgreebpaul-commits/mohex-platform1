@@ -1,8 +1,8 @@
 // backend/src/routes/traderoutes.ts
 
 import { Router } from 'express';
-import { getPortfolio, submitTrade, getTradeHistory, submitDepositRequest } from '../controllers/tradecontrollers';
-import { authMiddleware } from '../middleware/authmiddleware';
+import { getPortfolio, submitTrade, getTradeHistory, submitDepositRequest } from '../controllers/tradecontrollers.js';
+import { authMiddleware } from '../middleware/authmiddleware.js';
 
 const router = Router();
 
