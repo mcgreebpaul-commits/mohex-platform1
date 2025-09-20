@@ -1,6 +1,6 @@
-import db from '../config/db.js';
 import logger from '../utils/logger.js';
 import { socketService } from '../services/socketservice.js';
+import db from '../config/db.js';
 // ---- Get User's Portfolio ----
 export const getPortfolio = async (req, res) => {
     const userId = req.user?.id;
@@ -28,18 +28,19 @@ export const submitTrade = async (req, res) => {
     try {
         await connection.beginTransaction();
         // 1. Check user balance
-        const [portfolios] = await connection.query('SELECT balance FROM portfolios WHERE user_id = ? FOR UPDATE', [userId]);
+        const [balanceResult] = await connection.execute('SELECT balance FROM portfolios WHERE user_id = ? FOR UPDATE', [userId]);
+        const portfolios = balanceResult;
         if (portfolios.length === 0 || portfolios[0].balance < amount) {
             await connection.rollback();
             return res.status(400).json({ message: 'Insufficient funds.' });
         }
         // 2. Deduct amount from balance (This amount is "staked" in the trade)
         const newBalance = portfolios[0].balance - amount;
-        await connection.query('UPDATE portfolios SET balance = ? WHERE user_id = ?', [newBalance, userId]);
+        await connection.execute('UPDATE portfolios SET balance = ? WHERE user_id = ?', [newBalance, userId]);
         // 3. Create the trade record
-        const [result] = await connection.query('INSERT INTO trades (user_id, trading_pair, signal, amount, status) VALUES (?, ?, ?, ?, ?)', [userId, trading_pair, signal, amount, 'pending']);
+        const [tradeResult] = await connection.execute('INSERT INTO trades (user_id, trading_pair, signal, amount, status) VALUES (?, ?, ?, ?, ?)', [userId, trading_pair, signal, amount, 'pending']);
         await connection.commit();
-        const newTradeId = result.insertId;
+        const newTradeId = tradeResult.insertId;
         logger.info(`User ${userId} submitted a new trade #${newTradeId} for ${amount} on ${trading_pair}`);
         // Optional: Notify admin dashboard in real-time
         socketService.emitToUser(0, 'new-pending-trade', { tradeId: newTradeId, userId }); // Assuming 0 is a generic admin channel

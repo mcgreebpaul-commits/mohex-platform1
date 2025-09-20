@@ -14,7 +14,8 @@ const generateToken = (id, role) => {
 export const loginAdmin = async (req, res) => {
     const { email, password } = req.body;
     try {
-        const [rows] = await db.query('SELECT * FROM users WHERE email = ? AND role = "admin"', [email]);
+        const result = await db.query('SELECT * FROM users WHERE email = $1 AND role = $2', [email, 'admin']);
+        const rows = result.rows;
         const admin = rows[0];
         if (admin && (await bcrypt.compare(password, admin.password))) {
             res.json({
@@ -41,15 +42,16 @@ export const simulateTradeOutcome = async (req, res) => {
     if (!tradeId || !outcome || profitLossPercentage === undefined) {
         return res.status(400).json({ message: 'Missing required simulation parameters' });
     }
+    let client;
     try {
-        const connection = await db.getConnection();
-        await connection.beginTransaction();
+        client = await db.connect();
+        await client.query('BEGIN');
         // 1. Get the trade details
-        const [tradeRows] = await connection.query('SELECT * FROM trades WHERE id = ? AND status = "pending"', [tradeId]);
-        const trade = tradeRows[0];
+        const tradeResult = await client.query('SELECT * FROM trades WHERE id = $1 AND status = $2', [tradeId, 'pending']);
+        const trade = tradeResult.rows[0];
         if (!trade) {
-            await connection.rollback();
-            connection.release();
+            await client.query('ROLLBACK');
+            client.release();
             return res.status(404).json({ message: 'Pending trade not found' });
         }
         // 2. Calculate P&L
@@ -63,13 +65,13 @@ export const simulateTradeOutcome = async (req, res) => {
             pnl = -(amount * (percentage / 100));
         }
         else {
-            await connection.rollback();
-            connection.release();
+            await client.query('ROLLBACK');
+            client.release();
             return res.status(400).json({ message: 'Invalid outcome specified' });
         }
         const finalAmount = amount + pnl;
         // 3. Update the user's portfolio balance
-        await connection.query('UPDATE portfolios SET balance = balance + ? WHERE user_id = ?', [pnl, trade.user_id]);
+        await client.query('UPDATE portfolios SET balance = balance + $1 WHERE user_id = $2', [pnl, trade.user_id]);
         // 4. Update the trade status and outcome details
         const outcomeDetails = JSON.stringify({
             outcome,
@@ -79,9 +81,9 @@ export const simulateTradeOutcome = async (req, res) => {
             duration,
             simulatedAt: new Date()
         });
-        await connection.query('UPDATE trades SET status = ?, outcome = ? WHERE id = ?', [outcome, outcomeDetails, tradeId]);
-        await connection.commit();
-        connection.release();
+        await client.query('UPDATE trades SET status = $1, outcome = $2 WHERE id = $3', [outcome, outcomeDetails, tradeId]);
+        await client.query('COMMIT');
+        client.release();
         // 5. Notify the user via WebSocket
         io.to(`user_${trade.user_id}`).emit('trade_update', {
             message: `Your ${trade.pair} trade has been resolved!`,
@@ -93,6 +95,10 @@ export const simulateTradeOutcome = async (req, res) => {
     }
     catch (error) {
         console.error('Trade simulation error:', error);
+        if (client) {
+            await client.query('ROLLBACK');
+            client.release();
+        }
         res.status(500).json({ message: 'Server error during trade simulation' });
     }
 };
@@ -124,7 +130,7 @@ export const fundUserAccount = async (req, res) => {
         return res.status(400).json({ message: 'Missing required parameters' });
     }
     try {
-        await db.query('UPDATE portfolios SET balance = balance + ? WHERE user_id = ?', [amount, userId]);
+        await db.query('UPDATE portfolios SET balance = balance + $1 WHERE user_id = $2', [amount, userId]);
         res.status(200).json({ message: 'User account funded successfully' });
     }
     catch (error) {
@@ -133,8 +139,8 @@ export const fundUserAccount = async (req, res) => {
 };
 export const getPendingDeposits = async (req, res) => {
     try {
-        const [deposits] = await db.query('SELECT * FROM deposits WHERE status = "pending"');
-        res.json(deposits);
+        const result = await db.query('SELECT * FROM deposits WHERE status = $1', ['pending']);
+        res.json(result.rows);
     }
     catch (error) {
         res.status(500).json({ message: 'Failed to fetch pending deposits' });
@@ -146,7 +152,7 @@ export const processDeposit = async (req, res) => {
         return res.status(400).json({ message: 'Missing required parameters' });
     }
     try {
-        await db.query('UPDATE deposits SET status = ? WHERE id = ?', [status, depositId]);
+        await db.query('UPDATE deposits SET status = $1 WHERE id = $2', [status, depositId]);
         res.status(200).json({ message: 'Deposit processed successfully' });
     }
     catch (error) {
@@ -162,9 +168,8 @@ export const settleTrade = (req, res) => {
 };
 export const getPendingPayments = async (req, res) => {
     try {
-        // Example implementation
-        const [payments] = await db.query('SELECT * FROM payments WHERE status = "pending"');
-        res.json(payments);
+        const result = await db.query('SELECT * FROM payments WHERE status = $1', ['pending']);
+        res.json(result.rows);
     }
     catch (error) {
         res.status(500).json({ message: 'Failed to fetch pending payments' });

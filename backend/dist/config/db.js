@@ -1,23 +1,17 @@
-// backend/src/config/index.ts
-import mysql from 'mysql2/promise';
+// backend/src/config/db.ts
+import { Pool } from 'pg';
 import dotenv from 'dotenv';
 dotenv.config();
 // Create a connection pool to the database
-const pool = mysql.createPool({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || 'Doggy234.',
-    database: process.env.DB_NAME || 'mohex',
-    port: Number(process.env.DB_PORT) || 3306,
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0,
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
 // Test the connection
-pool.getConnection()
-    .then((connection) => {
+pool.connect()
+    .then((client) => {
     console.log('✅ Database connected successfully!');
-    connection.release();
+    client.release();
 })
     .catch((err) => {
     console.error('❌ Database connection failed:', err.message);
