@@ -1,5 +1,3 @@
-// backend/src/services/cronservice.ts
-
 import cron from 'node-cron';
 import db from '../config/db.js'; // Import the database pool
 import logger from '../utils/logger.js';
@@ -10,31 +8,30 @@ export const startSubscriptionCronJob = () => {
     logger.info('Running daily cron job: Checking for expired subscriptions...');
 
     try {
-      // cast to any so TypeScript recognizes the connection methods like execute/release
-      const connection: any = await db.getConnection();
+      const connection = await db.connect();
 
       // Find subscriptions that are past their expiration date and still active
-      const [expiredSubscriptions]: any = await connection.query(
+      const result = await connection.query(
         `SELECT id FROM subscriptions WHERE expires_at < NOW() AND status = 'active'`
       );
+      const expiredSubscriptions = result.rows;
 
       if (expiredSubscriptions.length === 0) {
         logger.info('No expired subscriptions found.');
-        // use optional chaining in case connection is undefined/null
-        connection?.release?.();
+        connection.release();
         return;
       }
 
       const subscriptionIds = expiredSubscriptions.map((sub: { id: number }) => sub.id);
 
       // Update the status of expired subscriptions to 'expired'
-      const [updateResult]: any = await connection.query(
-        `UPDATE subscriptions SET status = 'expired' WHERE id IN (?)`,
+      const updateResult = await connection.query(
+        `UPDATE subscriptions SET status = 'expired' WHERE id = ANY($1::int[])`,
         [subscriptionIds]
       );
 
-      logger.info(`Successfully updated ${updateResult.affectedRows} subscriptions to 'expired'.`);
-      connection?.release?.();
+      logger.info(`Successfully updated ${updateResult.rowCount} subscriptions to 'expired'.`);
+      connection.release();
 
     } catch (error) {
       if (error instanceof Error) {
