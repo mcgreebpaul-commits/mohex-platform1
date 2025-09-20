@@ -30,6 +30,21 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use('/api', router);
 
+// Root route
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Mohex Backend API is running successfully.',
+    version: '1.0.0',
+    endpoints: {
+      auth: '/api/auth',
+      user: '/api/user',
+      admin: '/api/admin',
+      health: '/health'
+    },
+    note: 'Frontend should be deployed separately and configured to use this API.'
+  });
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'Server is running' });
