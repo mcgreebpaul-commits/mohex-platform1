@@ -8,7 +8,10 @@ export const startSubscriptionCronJob = () => {
     logger.info('Running daily cron job: Checking for expired subscriptions...');
 
     try {
-      const connection = await db.connect();
+      // Support both CommonJS db.js exports and a plain Pool export.
+      const dbModule: any = db as any;
+      const pool = dbModule.pool || dbModule;
+      const connection = await pool.connect();
 
       // Find subscriptions that are past their expiration date and still active
       const result = await connection.query(
