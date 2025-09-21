@@ -13,7 +13,12 @@ const app = express();
 const server = createServer(app);
 // Configure CORS origins from environment variable CORS_ORIGIN (supports a single origin or comma-separated list).
 // Fallback to localhost and the existing Vercel preview URL when the env var is not set.
-const defaultOrigins = ["http://localhost:3000", "https://mohex-frontend-5kllmi970-mcgreebpaul-commits-projects.vercel.app"];
+const defaultOrigins = [
+    "http://localhost:3000",
+    "https://mohex-frontend-5kllmi970-mcgreebpaul-commits-projects.vercel.app",
+    "https://mohex.org",
+    "https://www.mohex.org"
+];
 const corsEnv = process.env.CORS_ORIGIN;
 let allowedOrigins = defaultOrigins;
 if (corsEnv && typeof corsEnv === 'string' && corsEnv.trim() !== '') {
