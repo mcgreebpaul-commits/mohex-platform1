@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: mohex-backend-render
+    branch: master
+    buildCommand: npm run build
+    startCommand: npm run start
+
+    # NOTE: Do NOT include secrets or env values here if Render's schema disallows them.
+    # Add environment variables (DATABASE_URL, JWT_SECRET, CORS_ORIGIN, etc.) manually
+    # in the Render dashboard after importing this repo.
