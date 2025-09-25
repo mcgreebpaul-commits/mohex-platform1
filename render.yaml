@@ -1,10 +1,72 @@
+# Render Blueprints manifest for three services: backend, frontend-admin, frontend-user
 services:
   - type: web
-    name: mohex-backend-render
-    branch: master
-    buildCommand: npm run build
-    startCommand: npm run start
+    name: mohex-backend
+    repo: https://github.com/your-org/mohex-platform
+    branch: main
+    runtime: node
+    buildCommand: cd backend && npm ci && npm run build
+    startCommand: cd backend && npm run start
+    autoDeploy: true
+    plan: standard
+    healthCheckPath: /health
+    region: oregon
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: DATABASE_URL
+        fromSecret: DATABASE_URL
+      - key: JWT_SECRET
+        fromSecret: JWT_SECRET
+      - key: CORS_ORIGIN
+        value: ${CORS_ORIGIN}
 
-    # NOTE: Do NOT include secrets or env values here if Render's schema disallows them.
-    # Add environment variables (DATABASE_URL, JWT_SECRET, CORS_ORIGIN, etc.) manually
-    # in the Render dashboard after importing this repo.
+  - type: web
+    name: mohex-frontend-admin
+    repo: https://github.com/your-org/mohex-platform
+    branch: main
+    runtime: node
+    buildCommand: cd frontend && npm ci && npm run build
+    startCommand: cd frontend && npm run start
+    autoDeploy: true
+    plan: starter
+    healthCheckPath: /
+    region: oregon
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        fromSecret: NEXT_PUBLIC_API_URL
+      - key: NEXT_PUBLIC_ROLE
+        value: admin
+      - key: NEXT_PUBLIC_SITE_DOMAIN
+        value: "mohex.org"
+
+  - type: web
+    name: mohex-frontend-user
+    repo: https://github.com/your-org/mohex-platform
+    branch: main
+    runtime: node
+    buildCommand: cd frontend && npm ci && npm run build
+    startCommand: cd frontend && npm run start
+    autoDeploy: true
+    plan: starter
+    healthCheckPath: /
+    region: oregon
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        fromSecret: NEXT_PUBLIC_API_URL
+      - key: NEXT_PUBLIC_ROLE
+        value: user
+      - key: NEXT_PUBLIC_SITE_DOMAIN
+        value: "mohex.org"
+
+# Notes:
+# - Replace the placeholder repo URL, branch and region with your real values.
+# - Add the secrets DATABASE_URL, JWT_SECRET, NEXT_PUBLIC_API_URL in Render's dashboard and keep them out of source control.
+# - This manifest deploys the same Next.js frontend twice with different NEXT_PUBLIC_ROLE values so you can host admin and user frontends separately; if you prefer a single frontend, remove one of the frontend entries and configure routing.
+# - If you require deterministic builds or native dependencies, add `dockerfilePath: backend/Dockerfile` (or frontend/Dockerfile) under the relevant service.

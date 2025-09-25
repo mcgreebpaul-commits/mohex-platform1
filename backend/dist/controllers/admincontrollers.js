@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
-import { io } from '../server.js'; // Import io from your server to emit events
 import bcrypt from 'bcryptjs';
 import db from '../config/db.js';
+import { socketService } from '../services/socketservice.js';
 // Utility to generate JWT
 const generateToken = (id, role) => {
     return jwt.sign({ id, role }, process.env.JWT_SECRET, {
@@ -15,10 +15,10 @@ export const loginAdmin = async (req, res) => {
     const { email, password } = req.body;
     try {
         const result = await db.query('SELECT * FROM users WHERE email = $1 AND role = $2', [email, 'admin']);
-        const rows = result.rows;
+        const rows = (result && result.rows) || [];
         const admin = rows[0];
         if (admin && (await bcrypt.compare(password, admin.password))) {
-            res.json({
+            return res.json({
                 id: admin.id,
                 name: admin.name,
                 email: admin.email,
@@ -26,80 +26,71 @@ export const loginAdmin = async (req, res) => {
                 token: generateToken(admin.id, admin.role),
             });
         }
-        else {
-            res.status(401).json({ message: 'Invalid admin credentials' });
-        }
+        return res.status(401).json({ message: 'Invalid admin credentials' });
     }
     catch (error) {
-        res.status(500).json({ message: 'Server error during admin login' });
+        console.error('loginAdmin error:', error);
+        return res.status(500).json({ message: 'Server error during admin login' });
     }
 };
 // @desc    Simulate a trade outcome
 // @route   POST /api/admin/simulate
 // @access  Private/Admin
 export const simulateTradeOutcome = async (req, res) => {
-    const { tradeId, outcome, profitLossPercentage, duration } = req.body;
-    if (!tradeId || !outcome || profitLossPercentage === undefined) {
-        return res.status(400).json({ message: 'Missing required simulation parameters' });
+    const { tradeId, outcome, percentage } = req.body;
+    if (!tradeId || !outcome) {
+        return res.status(400).json({ success: false, message: 'tradeId and outcome are required' });
     }
-    let client;
+    const pct = typeof percentage === 'number' ? percentage : Number(percentage) || 100;
+    // Acquire a client from the pool
+    const client = await db.connect();
     try {
-        client = await db.connect();
         await client.query('BEGIN');
-        // 1. Get the trade details
-        const tradeResult = await client.query('SELECT * FROM trades WHERE id = $1 AND status = $2', [tradeId, 'pending']);
-        const trade = tradeResult.rows[0];
-        if (!trade) {
+        // Lock the trade row
+        const tradeRes = await client.query('SELECT * FROM trades WHERE id = $1 FOR UPDATE', [tradeId]);
+        if (tradeRes.rowCount === 0) {
             await client.query('ROLLBACK');
             client.release();
-            return res.status(404).json({ message: 'Pending trade not found' });
+            return res.status(404).json({ success: false, message: 'Trade not found' });
         }
-        // 2. Calculate P&L
-        const amount = parseFloat(trade.amount);
-        const percentage = parseFloat(profitLossPercentage);
-        let pnl = 0;
-        if (outcome === 'win') {
-            pnl = amount * (percentage / 100);
-        }
-        else if (outcome === 'loss') {
-            pnl = -(amount * (percentage / 100));
-        }
-        else {
+        const trade = tradeRes.rows[0];
+        if (trade.status !== 'pending') {
             await client.query('ROLLBACK');
             client.release();
-            return res.status(400).json({ message: 'Invalid outcome specified' });
+            return res.status(400).json({ success: false, message: 'Only pending trades can be settled' });
         }
-        const finalAmount = amount + pnl;
-        // 3. Update the user's portfolio balance
-        await client.query('UPDATE portfolios SET balance = balance + $1 WHERE user_id = $2', [pnl, trade.user_id]);
-        // 4. Update the trade status and outcome details
-        const outcomeDetails = JSON.stringify({
-            outcome,
-            pnl,
-            finalAmount,
-            profitLossPercentage,
-            duration,
-            simulatedAt: new Date()
-        });
-        await client.query('UPDATE trades SET status = $1, outcome = $2 WHERE id = $3', [outcome, outcomeDetails, tradeId]);
+        const positionSize = Number(trade.amount) || 0;
+        const pnl = outcome === 'win' ? positionSize * (pct / 100) : -positionSize * (pct / 100);
+        // Update trade
+        await client.query('UPDATE trades SET status = $1, outcome = $2, percentage = $3, pnl = $4, settled_at = now() WHERE id = $5', ['settled', outcome, pct, pnl, tradeId]);
+        // Update user's balance - assume users table has balance
+        if (trade.user_id) {
+            await client.query('UPDATE users SET balance = COALESCE(balance,0) + $1 WHERE id = $2', [pnl, trade.user_id]);
+        }
+        // Audit log (non-fatal)
+        try {
+            const adminId = req.body?.adminId || null;
+            await client.query('INSERT INTO admin_audit (admin_id, action, entity_type, entity_id, details, created_at) VALUES ($1,$2,$3,$4,$5,now())', [adminId, 'simulate_trade', 'trade', tradeId, JSON.stringify({ outcome, percentage: pct, pnl })]);
+        }
+        catch (auditErr) {
+            console.warn('Audit insert failed (non-fatal):', (auditErr && auditErr.message) || auditErr);
+        }
         await client.query('COMMIT');
         client.release();
-        // 5. Notify the user via WebSocket
-        io.to(`user_${trade.user_id}`).emit('trade_update', {
-            message: `Your ${trade.pair} trade has been resolved!`,
-            tradeId: trade.id,
-            outcome,
-            pnl
-        });
-        res.status(200).json({ message: 'Trade simulated successfully', tradeId, outcome });
-    }
-    catch (error) {
-        console.error('Trade simulation error:', error);
-        if (client) {
-            await client.query('ROLLBACK');
-            client.release();
+        // Emit socket event
+        try {
+            socketService.emitToUser(trade.user_id, 'tradeUpdate', { tradeId, outcome, percentage: pct, pnl });
         }
-        res.status(500).json({ message: 'Server error during trade simulation' });
+        catch (emitErr) {
+            console.warn('Socket emit failed (non-fatal):', (emitErr && emitErr.message) || emitErr);
+        }
+        return res.json({ success: true, tradeId, outcome, percentage: pct, pnl });
+    }
+    catch (err) {
+        await client.query('ROLLBACK');
+        client.release();
+        console.error('simulateTradeOutcome error:', err);
+        return res.status(500).json({ success: false, message: 'Internal server error', error: String(err) });
     }
 };
 // Placeholders for other admin functions

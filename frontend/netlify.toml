@@ -11,8 +11,10 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "https://mohex-backend.herokuapp.com/api/:splat"
+  to = "https://mohex-backend-render.onrender.com/api/:splat"
   status = 200
 
 [context.production.environment]
   NEXT_PUBLIC_SITE_DOMAIN = "mohex.org"
+  # Set your Render backend URL here after deployment, e.g.:
+  # NEXT_PUBLIC_API_URL = "https://mohex-backend-render.onrender.com"
