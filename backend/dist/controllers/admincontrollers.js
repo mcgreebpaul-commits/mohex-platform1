@@ -37,7 +37,11 @@ export const loginAdmin = async (req, res) => {
 // @route   POST /api/admin/simulate
 // @access  Private/Admin
 export const simulateTradeOutcome = async (req, res) => {
-    const { tradeId, outcome, percentage } = req.body;
+    // Accept tradeId from body or from URL param
+    const bodyTradeId = req.body?.tradeId;
+    const paramTradeId = req.params?.id;
+    const { outcome, percentage } = req.body;
+    const tradeId = bodyTradeId || paramTradeId;
     if (!tradeId || !outcome) {
         return res.status(400).json({ success: false, message: 'tradeId and outcome are required' });
     }
@@ -69,7 +73,8 @@ export const simulateTradeOutcome = async (req, res) => {
         }
         // Audit log (non-fatal)
         try {
-            const adminId = req.body?.adminId || null;
+            // prefer authenticated admin user id when available
+            const adminId = req.user?.id || req.body?.adminId || null;
             await client.query('INSERT INTO admin_audit (admin_id, action, entity_type, entity_id, details, created_at) VALUES ($1,$2,$3,$4,$5,now())', [adminId, 'simulate_trade', 'trade', tradeId, JSON.stringify({ outcome, percentage: pct, pnl })]);
         }
         catch (auditErr) {
@@ -164,5 +169,29 @@ export const getPendingPayments = async (req, res) => {
     }
     catch (error) {
         res.status(500).json({ message: 'Failed to fetch pending payments' });
+    }
+};
+// Get a single trade by id
+export const getTradeById = async (req, res) => {
+    const tradeId = req.params?.id || req.body?.tradeId;
+    if (!tradeId)
+        return res.status(400).json({ message: 'trade id is required' });
+    try {
+        const result = await db.query(`SELECT t.*, u.email as user_email FROM trades t LEFT JOIN users u ON t.user_id = u.id WHERE t.id = $1`, [tradeId]);
+        let trade = null;
+        if (result && result.rows)
+            trade = result.rows[0];
+        else if (Array.isArray(result) && Array.isArray(result[0]))
+            trade = result[0][0];
+        else
+            trade = result[0] || result;
+        if (!trade) {
+            return res.status(404).json({ message: 'Trade not found' });
+        }
+        return res.json(trade);
+    }
+    catch (error) {
+        console.error('getTradeById error:', error?.message || error);
+        return res.status(500).json({ message: 'Failed to fetch trade' });
     }
 };

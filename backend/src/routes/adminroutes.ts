@@ -3,9 +3,10 @@
 import express from 'express';
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { settleTrade, getPendingTrades, getUsers, fundUserAccount, getPendingDeposits, processDeposit } from '../controllers/admincontrollers.js';
+import { settleTrade, getPendingTrades, getUsers, fundUserAccount, getPendingDeposits, processDeposit, simulateTradeOutcome } from '../controllers/admincontrollers.js';
 import { authMiddleware } from '../middleware/authmiddleware.js';
 import { isAdmin } from '../middleware/adminmiddleware.js';
+import { getTradeById } from '../controllers/admincontrollers.js';
 
 const router = Router();
 
@@ -19,6 +20,9 @@ router.post('/users/fund', fundUserAccount);
 
 // Trade Management
 router.get('/trades/pending', getPendingTrades);
+// Simulate a specific trade outcome (also keep settle endpoint)
+router.get('/trades/:id', getTradeById);
+router.post('/trades/:id/simulate', simulateTradeOutcome);
 router.post('/trades/settle', settleTrade);
 
 // Deposit Management
