@@ -1,0 +1,1 @@
+"use strict";exports.id=98,exports.ids=[98],exports.modules={4098:(e,t,r)=>{r.r(t),r.d(t,{default:()=>s});let s=(0,r(8570).createProxy)(String.raw`C:\Users\Jesse\OneDrive\Desktop\mohex-platform\frontend\app\admin\trades\TradesClient.tsx#default`)}};
